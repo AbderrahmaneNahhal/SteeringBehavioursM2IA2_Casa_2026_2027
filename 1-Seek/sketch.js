@@ -1,50 +1,42 @@
-let target
+let target;
+const vehicles = [];
+let sceneCanvas;
 
-
-// la fonction setup est appelée une fois au démarrage du programme par p5.js
-function setup() {
-  // on crée un canvas de 800px par 800px
-  createCanvas(windowWidth, windowHeight);
-
-  // On crée un véhicule à la position (100, 100)
-  vehicle = new Vehicle(100, 100);
-
-  // TODO: créer un tableau de véhicules en global
-  // ajouter nb vehicules au tableau dans une boucle
-  // avec une position random dans le canvas
-
-  // La cible est un vecteur avec une position aléatoire dans le canvas
-  // dirigée par la souris ensuite dans draw()
-  target = createVector(random(width), random(height));
+function sceneHeight() {
+  return Math.max(1, windowHeight - document.getElementById('controls').offsetHeight);
 }
 
-// la fonction draw est appelée en boucle par p5.js, 60 fois par seconde par défaut
-// Le canvas est effacé automatiquement avant chaque appel à draw
+function setup() {
+  sceneCanvas = createCanvas(windowWidth, sceneHeight());
+  sceneCanvas.parent('scene');
+  target = new MouseTarget(width / 2, height / 2);
+
+  const slider = document.getElementById('vehicle-count');
+  slider.value = SeekPopulation.INITIAL_COUNT;
+  SeekPopulation.bindSlider(slider, document.getElementById('vehicle-count-value'),
+    vehicles, target.pos, () => ({ width, height }), (x, y) => new Vehicle(x, y));
+
+  // Les coordonnées sont relatives au canvas, pas à la barre de contrôle.
+  // Un événement sur le slider ne modifie donc jamais la cible.
+  sceneCanvas.elt.addEventListener('pointermove', event => {
+    const rect = sceneCanvas.elt.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * width / rect.width;
+    const y = (event.clientY - rect.top) * height / rect.height;
+    if (x >= 0 && x <= width && y >= 0 && y <= height) target.pos.set(x, y);
+  });
+}
+
 function draw() {
-  // fond noir pour le canvas
-  background("black");
+  background('black');
+  for (const vehicle of vehicles) {
+    SeekPopulation.step(vehicle, target.pos, width, height);
+    vehicle.show();
+  }
+  target.show();
+}
 
-  // A partir de maintenant toutes les formes pleines seront en rouge
-  fill("red");
-  // pas de contours pour les formes.
-  noStroke();
-
-  // mouseX et mouseY sont des variables globales de p5.js, elles correspondent à la position de la souris
-  // on les stocke dans un vecteur pour pouvoir les utiliser avec la méthode seek (un peu plus loin)
-  // du vehicule
-  target.x = mouseX;
-  target.y = mouseY;
-
-  // Dessine un cercle de rayon 32px à la position de la souris
-  // la couleur de remplissage est rouge car on a appelé fill(255, 0, 0) plus haut
-  // pas de contours car on a appelé noStroke() plus haut
-  circle(target.x, target.y, 32);
-
-  // je déplace et dessine le véhicule
-  vehicle.applyBehaviors(target);
-  vehicle.update();
-
-  // On dessine le véhicule
-  vehicle.show();
-
+function windowResized() {
+  resizeCanvas(windowWidth, sceneHeight());
+  target.pos.set(constrain(target.pos.x, 0, width), constrain(target.pos.y, 0, height));
+  for (const vehicle of vehicles) vehicle.edges();
 }
